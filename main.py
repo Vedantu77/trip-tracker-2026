@@ -5,8 +5,8 @@ import time
 
 # --- 1. CONFIG ---
 # Replace with your actual credentials
-URL = st.secrets["https://ulliatblhllbxvjhlvlx.supabase.co"]
-KEY = st.secrets["sb_publishable_X9DBJwrA3im5ARK_jfTomw_Tk1eRBQ4"]
+URL = st.secrets["SUPABASE_URL"]
+KEY = st.secrets["SUPABASE_KEY"]
 YOUR_UPI_ID = "vedantgaikwad538@ibl"  # All contributions come here
 ADMIN_PASS = "vedant2026"
 
