@@ -52,59 +52,54 @@ st.divider()
 t1, t2, t3, t4 = st.tabs(["📥 Friend Pay", "💸 Admin: Pay Anyone", "📜 History", "👥 Members"])
 
 with t1:
-    st.subheader("Add Funds to the Trip")
+    st.subheader("📥 One-Click Pay to Vedant")
     f_name = st.text_input("Friend's Name")
-    f_amt = st.number_input("Amount to Contribute", min_value=0, step=500)
+    f_amt = st.number_input("Amount", min_value=0, step=100)
     
-    # Links ONLY to your account
-    friend_link = f"upi://pay?pa={YOUR_UPI_ID}&pn=Vedant&am={f_amt}&cu=INR&tn=TripContribution"
-    
-    st.markdown(f'''
-        <a href="{friend_link}" target="_self" style="text-decoration:none;">
-            <div style="background-color:#4CAF50;color:white;padding:15px;border-radius:10px;text-align:center;font-weight:bold;">
-                📲 Pay ₹{f_amt} to Vedant
-            </div>
-        </a>''', unsafe_allow_html=True)
-    
-    if st.button("✅ I have Paid (Add to Ledger)"):
+    if f_amt > 0:
+        # This is the "Magic Link"
+        pay_url = f"upi://pay?pa={YOUR_UPI_ID}&pn=Vedant&am={f_amt}&cu=INR&tn=Trip"
+        
+        # We use a Custom HTML Button to force the phone to open the app
+        pay_btn = f'''
+            <a href="{pay_url}">
+                <button style="width:100%; padding:15px; background-color:#28a745; color:white; border:none; border-radius:10px; font-size:18px; font-weight:bold;">
+                    💸 Pay ₹{f_amt} Now
+                </button>
+            </a>
+        '''
+        st.markdown(pay_btn, unsafe_allow_html=True)
+
+    if st.button("✅ Record Payment in Ledger"):
         if f_name and f_amt > 0:
             supabase.table("trip_funds").insert({"member_name": f_name, "amount": f_amt}).execute()
-            st.success(f"Pool Updated! Added ₹{f_amt} from {f_name}.")
-            time.sleep(1)
+            st.success("Logged!")
             st.rerun()
 
 with t2:
-    st.subheader("Admin: Universal Pay (Any Merchant)")
-    pwd = st.text_input("Admin Key", type="password")
-    
+    st.subheader("💸 Admin: Direct Merchant Pay")
+    pwd = st.text_input("Key", type="password")
     if pwd == ADMIN_PASS:
-        e_purp = st.text_input("Purpose (e.g. Taxi, Dinner)")
+        e_purp = st.text_input("Spending on?")
         e_amt = st.number_input("Expense Amount", min_value=0)
+        target_upi = st.text_input("Merchant UPI ID (e.g. shop@okaxis)")
         
-        st.info("💡 Enter any Merchant UPI ID or Number below to pay them directly.")
-        target = st.text_input("Merchant UPI ID / Phone Number")
-        e_cat = st.selectbox("Category", ["Food", "Transport", "Stay", "Pooja", "Misc"])
-        
-        if e_amt > 0 and target:
-            # Flexible Link Generation
-            merchant_link = f"upi://pay?pa={target}&pn=Merchant&am={e_amt}&cu=INR&tn={e_purp}"
+        if e_amt > 0 and target_upi:
+            m_url = f"upi://pay?pa={target_upi}&pn=Merchant&am={e_amt}&cu=INR&tn={e_purp}"
             
-            st.markdown(f'''
-                <a href="{merchant_link}" target="_self" style="text-decoration:none;">
-                    <div style="background-color:#E91E63;color:white;padding:15px;border-radius:10px;text-align:center;font-weight:bold;">
-                        🚀 Open App & Pay ₹{e_amt} to Merchant
-                    </div>
-                </a>''', unsafe_allow_html=True)
-            
-            st.caption("Note: If the link fails for security, pay manually and click the Record button below.")
-            
-            if st.button("💾 Record Expense to History"):
-                supabase.table("trip_expenses").insert({"purpose": e_purp, "amount": e_amt, "category": e_cat}).execute()
-                st.balloons()
-                time.sleep(1)
-                st.rerun()
-    else:
-        st.warning("Admin Access Required.")
+            # The Admin Magic Button
+            admin_pay_btn = f'''
+                <a href="{m_url}">
+                    <button style="width:100%; padding:15px; background-color:#e91e63; color:white; border:none; border-radius:10px; font-size:18px; font-weight:bold;">
+                        🚀 Pay Merchant ₹{e_amt}
+                    </button>
+                </a>
+            '''
+            st.markdown(admin_pay_btn, unsafe_allow_html=True)
+
+        if st.button("💾 Transaction Done (Record)"):
+            supabase.table("trip_expenses").insert({"purpose": e_purp, "amount": e_amt, "category": "Trip"}).execute()
+            st.rerun()
 
 with t3:
     st.subheader("Recent Spending Activity")
