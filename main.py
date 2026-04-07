@@ -5,11 +5,11 @@ import time
 
 # --- 1. CONFIG & SECRETS ---
 # Ensure these match the keys in your Streamlit Cloud "Secrets" tab
-URL = st.secrets["https://ulliatblhllbxvjhlvlx.supabase.co"]
-KEY = st.secrets["sb_publishable_X9DBJwrA3im5ARK_jfTomw_Tk1eRBQ4"]
+# --- 1. CONFIG & SECRETS ---
+URL = st.secrets["SUPABASE_URL"]
+KEY = st.secrets["SUPABASE_KEY"]
 YOUR_UPI_ID = "vedantgaikwad538@ibl" 
 ADMIN_PASS = "vedant2026"
-
 # Connect to Supabase
 supabase = create_client(URL, KEY)
 
