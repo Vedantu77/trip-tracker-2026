@@ -3,100 +3,84 @@ from supabase import create_client
 import pandas as pd
 import time
 
-# --- 1. SETUP ---
-# Ensure these match your Supabase Dashboard
-URL = "https://ulliatblhllbxvjhlvlx.supabase.co"
-KEY = "sb_publishable_X9DBJwrA3im5ARK_jfTomw_Tk1eRBQ4"
+# --- 1. SECRETS & CONFIG ---
+URL = st.secrets["https://ulliatblhllbxvjhlvlx.supabase.co"]
+KEY = st.secrets["sb_publishable_X9DBJwrA3im5ARK_jfTomw_Tk1eRBQ4"]
 YOUR_UPI_ID = "vedantgaikwad538@ibl" 
 ADMIN_PASS = "vedant2026"
 
 supabase = create_client(URL, KEY)
 
-st.set_page_config(page_title="Trip Ledger 2026", layout="wide", page_icon="🚩")
+st.set_page_config(page_title="Trip Ledger: Auto-Sync", layout="wide", page_icon="📡")
 
-# --- 2. THE FIX FOR MOBILE TABS ---
-def upi_button(label, upi_url, color="#673ab7"):
-    html_code = f'''
-    <a href="{upi_url}" target="_self" style="text-decoration: none;">
-        <div style="background-color:{color}; color:white; padding:12px; border-radius:10px; text-align:center; font-weight:bold; cursor:pointer;">
-            {label}
-        </div>
-    </a>
-    '''
-    return st.markdown(html_code, unsafe_allow_html=True)
-
-# --- 3. DATA LOADING ---
+# --- 2. DATA LOADING ---
 def load_data():
     f = supabase.table("trip_funds").select("*").execute()
     e = supabase.table("trip_expenses").select("*").execute()
     return pd.DataFrame(f.data), pd.DataFrame(e.data)
 
 df_f, df_e = load_data()
-t_in = df_f['amount'].sum() if not df_f.empty else 0
-t_out = df_e['amount'].sum() if not df_e.empty else 0
-bal = t_in - t_out
 
-# --- 4. DASHBOARD ---
-st.title("🚩 Vrindavan-Ujjain Live Tracker")
-c1, c2, c3 = st.columns(3)
-c1.metric("Total Collected 📥", f"₹{t_in}")
-c2.metric("Total Spent 📤", f"₹{t_out}", delta=f"-{t_out}", delta_color="inverse")
-c3.metric("Available Balance 💰", f"₹{bal}")
+# Calculations
+total_verified = df_f[df_f['status'] == 'Verified']['amount'].sum() if not df_f.empty else 0
+total_spent = df_e['amount'].sum() if not df_e.empty else 0
+balance = total_verified - total_spent
+
+# --- 3. DASHBOARD ---
+st.title("🚩 Vrindavan-Ujjain Smart Ledger")
+st.caption("📡 Auto-syncing with Bank Notifications")
+
+m1, m2, m3 = st.columns(3)
+m1.metric("Verified Fund 📥", f"₹{total_verified}")
+m2.metric("Total Spent 📤", f"₹{total_spent}", delta=f"-{total_spent}", delta_color="inverse")
+m3.metric("Live Balance 💰", f"₹{balance}")
 
 st.divider()
 
-# --- 5. TABS ---
-t1, t2, t3, t4 = st.tabs(["📥 Add Fund", "💸 Pay & Record", "📜 History", "👥 Members"])
+# --- 4. TABS ---
+t1, t2, t3, t4 = st.tabs(["📥 Add Fund", "💸 Admin Pay", "📜 History", "🛡️ Manual Verify"])
 
 with t1:
-    st.subheader("Contribute to Trip")
-    f_name = st.text_input("Friend Name")
-    f_amt = st.number_input("Amount", min_value=0, step=100)
-    if f_amt > 0:
-        link = f"upi://pay?pa={YOUR_UPI_ID}&pn=Vedant&am={f_amt}&cu=INR&tn=TripFund"
-        upi_button(f"📲 Pay ₹{f_amt} via UPI", link, "#4CAF50")
-    if st.button("✅ Log My Payment"):
-        if f_name and f_amt > 0:
-            supabase.table("trip_funds").insert({"member_name": f_name, "amount": f_amt}).execute()
-            st.success("Entry Saved!")
-            time.sleep(1)
-            st.rerun()
+    st.subheader("Send Money")
+    name = st.text_input("Your Name (As seen on GPay)")
+    amt = st.number_input("Amount", min_value=0, step=100)
+    if amt > 0:
+        link = f"upi://pay?pa={YOUR_UPI_ID}&pn=Vedant&am={amt}&cu=INR&tn=TripFund"
+        st.markdown(f'<a href="{link}" target="_self" style="text-decoration:none;"><div style="background-color:#4CAF50;color:white;padding:12px;border-radius:10px;text-align:center;font-weight:bold;">📲 Pay ₹{amt} via UPI</div></a>', unsafe_allow_html=True)
+        if st.button("I Have Paid"):
+            supabase.table("trip_funds").insert({"member_name": name, "amount": amt, "status": "Pending"}).execute()
+            st.info("Waiting for Bank Confirmation... (Auto-updates in 30s)")
 
 with t2:
-    st.subheader("Admin: New Expense")
-    pwd = st.text_input("Admin Key", type="password")
-    if pwd == ADMIN_PASS:
-        e_purp = st.text_input("Purpose (e.g. Hotel/Rickshaw)")
-        e_amt = st.number_input("Expense Amount", min_value=0, step=10)
-        e_cat = st.selectbox("Category", ["Food", "Transport", "Stay", "Pooja", "Misc"])
-        if e_amt > 0:
-            e_link = f"upi://pay?pa={YOUR_UPI_ID}&pn=Merchant&am={e_amt}&cu=INR&tn={e_purp}"
-            upi_button(f"🚀 Open App & Pay ₹{e_amt}", e_link, "#E91E63")
-            if st.button("💾 Save to Ledger"):
-                supabase.table("trip_expenses").insert({"purpose": e_purp, "amount": e_amt, "category": e_cat}).execute()
-                st.success("Balance Updated!")
-                time.sleep(1)
+    st.subheader("Admin Payments")
+    if st.text_input("Admin Key", type="password") == ADMIN_PASS:
+        p_purp = st.text_input("Purpose")
+        p_amt = st.number_input("Expense Amount", min_value=0)
+        p_cat = st.selectbox("Category", ["Food", "Transport", "Stay", "Pooja", "Misc"])
+        if p_amt > 0:
+            if st.button("Save Expense"):
+                supabase.table("trip_expenses").insert({"purpose": p_purp, "amount": p_amt, "category": p_cat}).execute()
                 st.rerun()
 
 with t3:
     st.subheader("Spending History")
     if not df_e.empty:
-        # Added a Delete feature for Admin
-        for index, row in df_e.iterrows():
-            col_a, col_b, col_c = st.columns([3, 1, 1])
-            col_a.write(f"**{row['purpose']}** ({row['category']})")
-            col_b.write(f"₹{row['amount']}")
-            if pwd == ADMIN_PASS:
-                if col_c.button("🗑️ Delete", key=f"del_{row['id']}"):
-                    supabase.table("trip_expenses").delete().eq("id", row['id']).execute()
-                    st.rerun()
-    else:
-        st.info("No expenses yet.")
+        st.table(df_e[['purpose', 'amount', 'category', 'created_at']].sort_values('created_at', ascending=False))
 
 with t4:
-    st.subheader("Who has paid how much?")
-    if not df_f.empty:
-        summary = df_f.groupby('member_name')['amount'].sum().reset_index()
-        st.table(summary)
-    else:
-        st.write("No contributions recorded.")
+    st.subheader("🛡️ Backup Verification")
+    if st.text_input("Verify Key", type="password", key="v_key") == ADMIN_PASS:
+        pending = df_f[df_f['status'] == 'Pending']
+        if not pending.empty:
+            for _, row in pending.iterrows():
+                col_a, col_b = st.columns([3,1])
+                col_a.write(f"**{row['member_name']}** → ₹{row['amount']}")
+                if col_b.button("Verify ✅", key=f"v_{row['id']}"):
+                    supabase.table("trip_funds").update({"status": "Verified"}).eq("id", row['id']).execute()
+                    st.rerun()
+        else:
+            st.success("No pending items.")
+
+# --- 5. AUTO-REFRESH LOGIC ---
+time.sleep(30)
+st.rerun()
