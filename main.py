@@ -7,7 +7,7 @@ import time
 # Ensure these match your Supabase Dashboard
 URL = "https://ulliatblhllbxvjhlvlx.supabase.co"
 KEY = "sb_publishable_X9DBJwrA3im5ARK_jfTomw_Tk1eRBQ4"
-YOUR_UPI_ID = "vedantgaikwad538@okaxis" 
+YOUR_UPI_ID = "vedantgaikwad538@ibl" 
 ADMIN_PASS = "vedant2026"
 
 supabase = create_client(URL, KEY)
